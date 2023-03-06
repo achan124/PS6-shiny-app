@@ -33,27 +33,25 @@ ui <- fluidPage(
                               choices = c("Set1", "Set2", "Set3"))
                ),
                mainPanel(
-                 plotOutput("plot")
+                 plotOutput("plot"),
+                 textOutput("plotText")
                )
              )
     ),
     
     tabPanel("Table",
              sidebarLayout(
-               
                sidebarPanel(
                  p("Here, we can see the effect that different substances have on a person's sleep quality"),
                  radioButtons("substance", "Select a habit:",
                               choices = c("Caffeine consumption", "Alcohol consumption", "Smoking status"),
                               selected = "Caffeine consumption")
                ),
-               
                mainPanel(
+                 textOutput("tableText"),
                  tableOutput("table")
                )
-               
              )
-             
     )
     
     
@@ -73,11 +71,21 @@ server <- function(input, output) {
       filter(`Exercise frequency` %in% input$frequency)
   })
   
+  plotSampleValue <- reactive({
+    sleep[input$range[1]:input$range[2], ] %>% 
+      filter(`Exercise frequency` %in% input$frequency) %>% 
+      nrow()
+  })
+  
+  output$plotText <- renderText({
+    paste("There are", plotSampleValue(), "people shown on the plot")
+  })
+  
   output$plot <- renderPlot({
     plotSample() %>%  
-      ggplot(aes(`Age`, `Sleep duration`, col = as.factor(`Sleep duration`))) +
+      ggplot(aes(`Age`, `Sleep duration`, col = as.factor(`Exercise frequency`))) +
       geom_point() +
-      labs(col = "Hours") +
+      labs(col = "Exercise frequency") +
       scale_color_brewer(palette = input$color)
   })
   
@@ -88,11 +96,43 @@ server <- function(input, output) {
       arrange(`Awakenings`)
   })
   
+  smoking <- reactive({
+      if("Smoking status" %in% input$substance)
+        sleep %>% 
+        filter(`Smoking status` == "No") %>% 
+        nrow() 
+  })
+  
+  coffee <- reactive({
+    if("Caffeine consumption" %in% input$substance)
+      sleep[sleep$`Caffeine consumption` == 0, ] %>% 
+      nrow()
+  })
+  
+  alcohol <- reactive({
+    if("Alcohol consumption" %in% input$substance)
+      sleep[sleep$`Alcohol consumption` == 0, ] %>% 
+      nrow()
+  })
+  
+  drug <- reactive({
+    if("Caffeine consumption" %in% input$substance)
+      return("drink coffee")
+    if("Alcohol consumption" %in% input$substance)
+      return("drink alcohol")
+    if("Smoking status" %in% input$substance)
+      return("smoke cigarettes")
+  })
+  
+  output$tableText <- renderText({
+    paste("There are", coffee(), alcohol(), smoking(), "people who don't", drug())
+  })
+
+  
   output$table <- renderTable({
     tableSample()
   })
   
 }
-
 
 shinyApp(ui = ui, server = server)
